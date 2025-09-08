@@ -93,3 +93,58 @@ export const detectRecurringExpenses = (expenses: Expense[]): Expense[] => {
   
   return recurring;
 };
+
+export const calculateCategorySpending = (expenses: Expense[]): CategorySpending[] => {
+  const categoryTotals = new Map<string, {amount: number, count: number}>();
+  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  
+  expenses.forEach(expense => {
+    const current = categoryTotals.get(expense.category) || {amount: 0, count: 0};
+    categoryTotals.set(expense.category, {
+      amount: current.amount + expense.amount,
+      count: current.count + 1
+    });
+  });
+  
+  const result: CategorySpending[] = [];
+  
+  categoryTotals.forEach((data, categoryName) => {
+    const category = getCategoryByName(categoryName) || defaultCategories[0];
+    result.push({
+      category: categoryName,
+      amount: data.amount,
+      percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+      color: category.color,
+      transactionCount: data.count
+    });
+  });
+  
+  return result.sort((a, b) => b.amount - a.amount);
+};
+
+export const calculateMonthlyTrend = (expenses: Expense[], months: number = 6): MonthlySpending[] => {
+  const monthlyData = new Map<string, number>();
+  const currentDate = new Date();
+  
+  // Initialize months
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+    const monthKey = format(date, 'MMM yyyy');
+    monthlyData.set(monthKey, 0);
+  }
+  
+  // Aggregate expenses by month
+  expenses.forEach(expense => {
+    const monthKey = format(expense.date, 'MMM yyyy');
+    if (monthlyData.has(monthKey)) {
+      monthlyData.set(monthKey, monthlyData.get(monthKey)! + expense.amount);
+    }
+  });
+  
+  // Convert to array format
+  return Array.from(monthlyData.entries()).map(([month, amount]) => ({
+    month,
+    amount,
+    budget: 2500 // Default budget - in real app, this would come from user settings
+  }));
+};
